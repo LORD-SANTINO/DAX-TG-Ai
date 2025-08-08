@@ -8,7 +8,7 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
 # Replace with the usernames or IDs of the required subscription channels
-REQUIRED_CHANNELS = ["channel_username_1", "channel_username_2"]
+REQUIRED_CHANNELS = ["@dax_channel01", "@dax_gpt"]
 
 # Initialize OpenAI API
 openai.api_key = OPENAI_API_KEY
