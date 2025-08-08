@@ -31,7 +31,7 @@ def decrypt_message(ciphertext, password):
 
 # === COMMANDS ===
 def start(update: Update, context: CallbackContext):
-    update.message.reply_text("🔐 Welcome to DAX Cipher Chat!\nUse /encrypt or /decrypt.\nExample:\n/encrypt Hello123 password\n/decrypt <ciphertext> password")
+    update.message.reply_text("🔐 Welcome to DAX Cipher Bot!\nUse /encrypt or /decrypt.\nExample:\n/encrypt Hello123 password\n/decrypt <ciphertext> password")
 
 def encrypt_cmd(update: Update, context: CallbackContext):
     try:
