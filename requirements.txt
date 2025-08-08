@@ -1,3 +1,2 @@
 python-telegram-bot==20.7
-openai
-tornado==6.3.3
+google-generativeai==0.5.2
