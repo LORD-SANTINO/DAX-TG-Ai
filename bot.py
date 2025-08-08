@@ -1,5 +1,5 @@
 import telegram
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram.ext import Updater, CommandHandler, MessageHandler
 import google.generativeai as genai
 
 # 1. Initialize the Telegram bot with your bot token
