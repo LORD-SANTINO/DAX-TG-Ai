@@ -1,49 +1,72 @@
-import logging
+import base64
+from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
+from Crypto.Util.Padding import pad, unpad
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
-import google.generativeai as genai
+from telegram.ext import Updater, CommandHandler, CallbackContext
 
-# Enable logging (helps debug in Railway)
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
+# === CONFIGURATION ===
+BOT_TOKEN = "PASTE_YOUR_TELEGRAM_BOT_TOKEN"
 
-# 1. Your credentials
-TELEGRAM_BOT_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN'  # Replace with your Telegram Bot Token
-GOOGLE_API_KEY = 'YOUR_GEMINI_API_KEY'  # Replace with your Gemini API Key
+# === AES UTILS ===
+def encrypt_message(message, password):
+    key = password.ljust(32, '0').encode('utf-8')[:32]
+    iv = get_random_bytes(16)
+    cipher = AES.new(key, AES.MODE_CBC, iv)
+    ct_bytes = cipher.encrypt(pad(message.encode('utf-8'), AES.block_size))
+    encrypted = base64.b64encode(iv + ct_bytes).decode('utf-8')
+    return encrypted
 
-# 2. Configure Gemini
-genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel('gemini-pro')
-
-# 3. Start command
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("👋 Hi! I'm your Gemini AI bot. Send me any message!")
-
-# 4. AI reply handler
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_msg = update.message.text
-
+def decrypt_message(ciphertext, password):
     try:
-        response = model.generate_content(user_msg)
-        reply = response.text if hasattr(response, 'text') else response.candidates[0].content.parts[0].text
+        raw = base64.b64decode(ciphertext)
+        iv = raw[:16]
+        ct = raw[16:]
+        key = password.ljust(32, '0').encode('utf-8')[:32]
+        cipher = AES.new(key, AES.MODE_CBC, iv)
+        pt = unpad(cipher.decrypt(ct), AES.block_size).decode('utf-8')
+        return pt
     except Exception as e:
-        reply = f"⚠️ Error: {e}"
+        return f"❌ Error: {e}"
 
-    await update.message.reply_text(reply)
+# === COMMANDS ===
+def start(update: Update, context: CallbackContext):
+    update.message.reply_text("🔐 Welcome to DAX Cipher Chat!\nUse /encrypt or /decrypt.\nExample:\n/encrypt Hello123 password\n/decrypt <ciphertext> password")
 
-# 5. Main function to run bot
-async def main():
-    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+def encrypt_cmd(update: Update, context: CallbackContext):
+    try:
+        text = ' '.join(context.args)
+        if len(context.args) < 2:
+            raise ValueError("You must provide a message and a password.")
+        *msg_parts, password = context.args
+        message = ' '.join(msg_parts)
+        encrypted = encrypt_message(message, password)
+        update.message.reply_text(f"🔒 Encrypted:\n{encrypted}")
+    except Exception as e:
+        update.message.reply_text(f"❌ Error: {e}")
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+def decrypt_cmd(update: Update, context: CallbackContext):
+    try:
+        if len(context.args) < 2:
+            raise ValueError("You must provide a ciphertext and a password.")
+        *cipher_parts, password = context.args
+        ciphertext = ' '.join(cipher_parts)
+        decrypted = decrypt_message(ciphertext, password)
+        update.message.reply_text(f"🔓 Decrypted:\n{decrypted}")
+    except Exception as e:
+        update.message.reply_text(f"❌ Error: {e}")
 
-    print("✅ Bot is running...")
-    await app.run_polling()
+# === MAIN ===
+def main():
+    updater = Updater(BOT_TOKEN, use_context=True)
+    dp = updater.dispatcher
 
-# 6. Run the bot
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("encrypt", encrypt_cmd))
+    dp.add_handler(CommandHandler("decrypt", decrypt_cmd))
+
+    updater.start_polling()
+    updater.idle()
+
 if __name__ == '__main__':
-    import asyncio
-    asyncio.run(main())
+    main()
