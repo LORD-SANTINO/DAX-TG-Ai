@@ -3,10 +3,10 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters # Impo
 import google.generativeai as genai # Imports the Google Gemini API for generating text.
 
 # 1. Initialize the Telegram bot with your bot token
-TELEGRAM_BOT_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN' # Replace with your actual Telegram Bot Token.
+TELEGRAM_BOT_TOKEN = '8209367267:AAEAtSi_oXF3Q_cZfYw0T3jCI_NdRQ36J_E' # Replace with your actual Telegram Bot Token.
 
 # 2. Initialize the Gemini API with your API key
-GOOGLE_API_KEY = 'YOUR_GEMINI_API_KEY' # Replace with your actual Google Gemini API Key.
+GOOGLE_API_KEY = 'AIzaSyDc5eeQiGC76XY0BLfBJAyq2ml_s327Q3o' # Replace with your actual Google Gemini API Key.
 genai.configure(api_key=GOOGLE_API_KEY) # Configures the Gemini API with your API key.
 model = genai.GenerativeModel('gemini-pro') # Selects the 'gemini-pro' model for text generation.
 
