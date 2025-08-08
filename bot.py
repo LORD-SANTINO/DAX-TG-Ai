@@ -8,7 +8,7 @@ TELEGRAM_BOT_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN'
 # 2. Initialize the Gemini API with your API key
 GOOGLE_API_KEY = 'YOUR_GEMINI_API_KEY'
 genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel('gemini-Pro')
+model = genai.GenerativeModel('gemini-pro')
 
 # 3. Define the start command handler
 def start(update, context):
@@ -23,7 +23,7 @@ def echo(update, context):
     # Get a response from the Gemini API
     try:
         response = model.generate_content(user_message)
-        gemini_reply = response.text
+        gemini_reply = response.candidates[0].content.parts[0].text
     except Exception as e:
         gemini_reply = f"Sorry, I encountered an error: {e}"
 
