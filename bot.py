@@ -1,10 +1,10 @@
 import telegram
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 import openai
+import os
 
-# Replace with your actual Telegram bot token and OpenAI API key
-TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
-OPENAI_API_KEY = "YOUR_OPENAI_API_KEY"
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Replace with the usernames or chat IDs of the required Telegram channels
 REQUIRED_CHANNELS = ["@channel1", "@channel2"]
