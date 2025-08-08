@@ -1,5 +1,5 @@
 import telegram # Imports the telegram library for interacting with the Telegram Bot API.
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters # Imports necessary modules for bot functionality.
+from telegram.ext import Updater, CommandHandler, MessageHandler # Imports necessary modules for bot functionality.
 import google.generativeai as genai # Imports the Google Gemini API for generating text.
 
 # 1. Initialize the Telegram bot with your bot token
