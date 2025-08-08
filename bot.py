@@ -1,82 +1,91 @@
 import telegram
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, CallbackContext
 import openai
+import asyncio
 import os
 
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
-# Replace with the usernames or chat IDs of the required Telegram channels
-REQUIRED_CHANNELS = ["@channel1", "@channel2"]
+# Replace with the usernames or IDs of the required subscription channels
+REQUIRED_CHANNELS = ["channel_username_1", "channel_username_2"]
 
+# Initialize OpenAI API
 openai.api_key = OPENAI_API_KEY
 
-
-def check_user_subscription(update, context):
+async def check_subscription(context: CallbackContext, user_id: int) -> bool:
     """Checks if the user is subscribed to the required channels."""
-    user_id = update.effective_user.id
-
+    bot = context.bot
     for channel in REQUIRED_CHANNELS:
         try:
-            chat_member = context.bot.get_chat_member(channel, user_id)
+            chat_member = await bot.get_chat_member(chat_id=channel, user_id=user_id)
             status = chat_member.status
-
             if status not in ["member", "administrator", "creator"]:
-                update.message.reply_text(f"Please join {channel} to use this bot.")
-                return False
-
+                return False # User is not a member
         except Exception as e:
-            print(f"Error checking subscription for {channel}: {e}")
-            update.message.reply_text(f"Could not verify subscription to {channel}. Please try again later.")
-            return False
-
-    return True
+            print(f"Error checking subscription for channel {channel}: {e}")
+            return False # Assume not subscribed if there's an error
+    return True # User is subscribed to all channels
 
 
-def start(update, context):
-    """Handles the /start command.  Greets the user and informs them about the channel requirements."""
-    update.message.reply_text("Welcome! Please subscribe to the following channels to use this bot:\n" + "\n".join(REQUIRED_CHANNELS))
+async def start(update: telegram.Update, context: CallbackContext) -> None:
+    """Handles the /start command. Checks subscription status and informs the user."""
+    user_id = update.effective_user.id
+
+    if await check_subscription(context, user_id):
+        await update.message.reply_text("Welcome! You are subscribed to the required channels. You can now use the bot.")
+    else:
+        await update.message.reply_text("Please subscribe to the required channels to use this bot.")
 
 
-def generate_response(prompt):
-    """Generates a response using OpenAI's GPT-4."""
-    try:
-        completion = openai.ChatCompletion.create(
-            model="gpt-4",  # Specify the GPT-4 model
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return completion.choices[0].message.content
-    except Exception as e:
-        print(f"Error generating response: {e}")
-        return "Sorry, I encountered an error while processing your request."
+async def handle_message(update: telegram.Update, context: CallbackContext) -> None:
+    """Handles incoming messages.  Only processes if the user is subscribed."""
+    user_id = update.effective_user.id
 
-
-def handle_message(update, context):
-    """Handles incoming messages, checks subscriptions, and generates a response."""
-    if not check_user_subscription(update, context):
+    if not await check_subscription(context, user_id):
+        await update.message.reply_text("Please subscribe to the required channels to use this bot.")
         return
 
     user_message = update.message.text
-    response = generate_response(user_message)
-    update.message.reply_text(response)
+
+    try:
+        # Call OpenAI API to generate a response
+        response = openai.Completion.create(
+            engine="gpt-4",  # Or another suitable GPT-4 engine
+            prompt=user_message,
+            max_tokens=150,  # Adjust as needed
+            temperature=0.7,  # Adjust for creativity
+        )
+        bot_response = response.choices[0].text.strip()
+        await update.message.reply_text(bot_response)
+
+    except Exception as e:
+        print(f"Error communicating with OpenAI: {e}")
+        await update.message.reply_text("Sorry, I encountered an error processing your request.")
 
 
-def main():
+async def error_handler(update: object, context: CallbackContext) -> None:
+    """Log Errors caused by Update."""
+    print(f'Update {update} caused error {context.error}')
+
+
+
+def main() -> None:
     """Main function to start the bot."""
-    updater = Updater(TELEGRAM_BOT_TOKEN, use_context=True)
-    dp = updater.dispatcher
+    application = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
     # Add command handler for /start
-    dp.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("start", start))
 
-    # Add message handler to process all text messages
-    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
+    # Add message handler for all text messages
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    # Add error handler
+    application.add_error_handler(error_handler)
 
     # Start the bot
-    updater.start_polling()
-    updater.idle()
+    application.run_polling()
 
 
 if __name__ == "__main__":
     main()
-    
