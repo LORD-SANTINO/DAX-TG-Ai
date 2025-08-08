@@ -6,7 +6,7 @@ from telegram import Update
 from telegram.ext import Updater, CommandHandler, CallbackContext
 
 # === CONFIGURATION ===
-BOT_TOKEN = ""
+BOT_TOKEN = "8209367267:AAEAtSi_oXF3Q_cZfYw0T3jCI_NdRQ36J_E"
 
 # === AES UTILS ===
 def encrypt_message(message, password):
