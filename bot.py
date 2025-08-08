@@ -57,6 +57,7 @@ async def handle_message(update: telegram.Update, context: CallbackContext) -> N
     temperature=0.7,
         )
 bot_response = response.choices[0].message["content"].strip()
+await update.message.reply_text(bot_response)
 
     except Exception as e:
         print(f"Error communicating with OpenAI: {e}")
