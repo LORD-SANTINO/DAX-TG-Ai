@@ -50,11 +50,11 @@ async def handle_message(update: telegram.Update, context: CallbackContext) -> N
 
     try:
         # Call OpenAI API to generate a response
-        response = openai.Completion.create(
-            engine="gpt-4",  # Or another suitable GPT-4 engine
-            prompt=user_message,
-            max_tokens=150,  # Adjust as needed
-            temperature=0.7,  # Adjust for creativity
+        response = openai.ChatCompletion.create(
+    model="gpt-4",  # or "gpt-3.5-turbo" if you're on the free tier
+    messages=[{"role": "user", "content": user_message}],
+    max_tokens=150,
+    temperature=0.7,
         )
         bot_response = response.choices[0].text.strip()
         await update.message.reply_text(bot_response)
