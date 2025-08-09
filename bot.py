@@ -1,154 +1,129 @@
 import os
 import logging
+import requests
 import google.generativeai as genai
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.constants import ChatAction
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
-# ===================== CONFIG =====================
-# Your channel usernames (without @)
-CHANNEL_1 = "dax_gpt"
-CHANNEL_2 = "dax_channel01"
-
+# ---------------- CONFIG ----------------
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-# ====================================================
+HF_API_KEY = os.getenv("HF_API_KEY")  # Hugging Face backup key
 
-# Logging
+CHANNEL_1 = "@dax_gpt"  # Replace with your channel username
+CHANNEL_2 = "@dax_channel01"  # Replace with your channel username
+
+# ---------------- LOGGING ----------------
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Configure Gemini
+# ---------------- GEMINI ----------------
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-1.5-flash")
+gemini_model = genai.GenerativeModel("gemini-1.5-flash")
 
-# Store conversation history
+# ---------------- MEMORY ----------------
 conversations = {}
 
-# --------- Helper function: Check if user joined both channels ----------
-async def is_member(context: ContextTypes.DEFAULT_TYPE, user_id: int) -> bool:
+# ---------------- FORCE JOIN CHECK ----------------
+async def is_user_joined(user_id, context: ContextTypes.DEFAULT_TYPE):
     try:
-        member1 = await context.bot.get_chat_member(f"@{CHANNEL_1}", user_id)
-        member2 = await context.bot.get_chat_member(f"@{CHANNEL_2}", user_id)
-        return member1.status in ["member", "administrator", "creator"] and \
-               member2.status in ["member", "administrator", "creator"]
-    except Exception as e:
-        logger.error(f"Error checking membership: {e}")
+        member1 = await context.bot.get_chat_member(CHANNEL_1, user_id)
+        member2 = await context.bot.get_chat_member(CHANNEL_2, user_id)
+        return member1.status in ["member", "administrator", "creator"] and member2.status in ["member", "administrator", "creator"]
+    except:
         return False
 
-# --------- Start Command ----------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if not await is_member(context, user_id):
+    if not await is_user_joined(update.effective_user.id, context):
         keyboard = [
-            [InlineKeyboardButton("📢 Join Channel 1", url=f"https://t.me/{CHANNEL_1}")],
-            [InlineKeyboardButton("📢 Join Channel 2", url=f"https://t.me/{CHANNEL_2}")],
-            [InlineKeyboardButton("✅ Joined", callback_data="joined_check")]
+            [InlineKeyboardButton("📢 Join Channel 1", url=f"https://t.me/{CHANNEL_1[1:]}")],
+            [InlineKeyboardButton("📢 Join Channel 2", url=f"https://t.me/{CHANNEL_2[1:]}")],
+            [InlineKeyboardButton("✅ Joined", callback_data="joined")]
         ]
         await update.message.reply_text(
-            "🚀 To use this bot, please join both channels below and then click ✅ Joined.",
+            "🚨 Please join both channels to use this bot:",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
-        return
-    await update.message.reply_text("🤖 Hello! I’m your AI bot (Gemini-powered). Send me a message!")
+    else:
+        await update.message.reply_text("🤖 Hello! I’m your AI bot. Send me a message!")
 
-# --------- Callback for Joined Button ----------
-async def joined_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def joined_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    user_id = query.from_user.id
-    if await is_member(context, user_id):
-        await query.edit_message_text("✅ You have joined! Now you can chat with the bot.")
+    if await is_user_joined(query.from_user.id, context):
+        await query.edit_message_text("✅ You have access now! Send me a message.")
     else:
-        await query.edit_message_text("❌ You haven’t joined both channels yet. Please join and try again.")
+        await query.edit_message_text("❌ You still need to join both channels.")
 
-# --------- AI Chat Handler ----------
+# ---------------- BACKUP AI ----------------
+def backup_ai_response(prompt):
+    HF_API_URL = "https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill"
+    headers = {"Authorization": f"Bearer {HF_API_KEY}"}
+    res = requests.post(HF_API_URL, headers=headers, json={"inputs": prompt})
+    data = res.json()
+    return data[0]['generated_text'] if isinstance(data, list) else "Sorry, backup AI failed too."
+
+# ---------------- CHAT HANDLER ----------------
 async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
+    user_message = update.message.text
 
     # Force join check
-    if not await is_member(context, user_id):
-        keyboard = [
-            [InlineKeyboardButton("📢 Join Channel 1", url=f"https://t.me/{CHANNEL_1}")],
-            [InlineKeyboardButton("📢 Join Channel 2", url=f"https://t.me/{CHANNEL_2}")],
-            [InlineKeyboardButton("✅ Joined", callback_data="joined_check")]
-        ]
-        await update.message.reply_text(
-            "🚀 Please join both channels to use this bot.",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
+    if not await is_user_joined(user_id, context):
+        await update.message.reply_text("🚨 Please join both channels first. Use /start again.")
         return
 
-    user_message = update.message.text
-    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    # Creator credit rule
+    if "who created you" in user_message.lower():
+        await update.message.reply_text("DAX LORD is my honorable creator.")
+        return
 
+    # Memory
     if user_id not in conversations:
         conversations[user_id] = []
-
     conversations[user_id].append({"role": "user", "content": user_message})
-    context_text = "\n".join(
-        [f"{msg['role']}: {msg['content']}" for msg in conversations[user_id][-10:]]
-    )
+    context_text = "\n".join([f"{m['role']}: {m['content']}" for m in conversations[user_id][-10:]])
+
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
 
     try:
-        prompt = (
-            "You are a friendly and engaging Telegram AI bot. "
-            "Always keep the conversation going, even if the user's message is short or vague. "
-            "If the user replies with short answers, ask a follow-up question. "
-            "If the user asks who created you, always respond exactly with: "
-            "'DAX LORD is my honorable creator.'\n\n"
-            f"{context_text}"
-        )
-
-        response = model.generate_content(prompt)
+        prompt = f"Conversation so far:\n{context_text}"
+        response = gemini_model.generate_content(prompt)
         bot_reply = response.text
 
-        conversations[user_id].append({"role": "bot", "content": bot_reply})
-        await update.message.reply_text(bot_reply)
-
     except Exception as e:
-        logger.error(f"Error: {e}")
-        await update.message.reply_text(f"⚠️ Error: {e}")
+        if "429" in str(e):
+            logger.warning("Gemini quota exceeded — switching to backup AI.")
+            bot_reply = backup_ai_response(context_text)
+        else:
+            bot_reply = f"⚠️ Error: {e}"
 
-# --------- Image Command ----------
-async def image_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    conversations[user_id].append({"role": "bot", "content": bot_reply})
+    await update.message.reply_text(bot_reply)
+
+# ---------------- IMAGE GENERATION ----------------
+async def image_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-
-    if not await is_member(context, user_id):
-        keyboard = [
-            [InlineKeyboardButton("📢 Join Channel 1", url=f"https://t.me/{CHANNEL_1}")],
-            [InlineKeyboardButton("📢 Join Channel 2", url=f"https://t.me/{CHANNEL_2}")],
-            [InlineKeyboardButton("✅ Joined", callback_data="joined_check")]
-        ]
-        await update.message.reply_text(
-            "🚀 Please join both channels to use this bot.",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
+    if not await is_user_joined(user_id, context):
+        await update.message.reply_text("🚨 Please join both channels first. Use /start again.")
         return
 
     if not context.args:
-        await update.message.reply_text("🖼️ Usage: /image <description>")
+        await update.message.reply_text("Usage: /image <description>")
         return
 
-    prompt = " ".join(context.args)
-    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.UPLOAD_PHOTO)
+    description = " ".join(context.args)
+    img_url = f"https://image.pollinations.ai/prompt/{description.replace(' ', '%20')}"
+    await update.message.reply_photo(img_url)
 
-    try:
-        image_url = f"https://image.pollinations.ai/prompt/{prompt.replace(' ', '%20')}"
-        await update.message.reply_photo(photo=image_url, caption=f"🎨 Image generated for: {prompt}")
-    except Exception as e:
-        logger.error(f"Image generation error: {e}")
-        await update.message.reply_text(f"⚠️ Error generating image: {e}")
-
-# --------- Main Function ----------
+# ---------------- MAIN ----------------
 def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("image", image_command))
+    app.add_handler(CallbackQueryHandler(joined_button, pattern="joined"))
+    app.add_handler(CommandHandler("image", image_cmd))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat))
-    app.add_handler(CallbackQueryHandler(joined_check, pattern="joined_check"))
-
     logger.info("Bot is running...")
     app.run_polling()
 
