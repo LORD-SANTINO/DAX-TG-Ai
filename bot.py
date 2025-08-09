@@ -53,7 +53,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return
-    await update.message.reply_text("🤖 Hello! I’m your AI bot (Gemini-powered). Send me a message!")
+    await update.message.reply_text("🤖 Hello! I’m DAX your AI bot. Send me a message!")
 
 # --------- Callback for Joined Button ----------
 async def joined_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
