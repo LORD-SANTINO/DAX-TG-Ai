@@ -186,12 +186,17 @@ async def tts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # --------- Image to File (Catbox) ----------
 async def image_to_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message.photo:
-        await update.message.reply_text("📷 Please send an image.")
+    # Check if there's a photo in the same message
+    if update.message.photo:
+        photo = update.message.photo[-1]
+    # Or if user replied to a message with a photo
+    elif update.message.reply_to_message and update.message.reply_to_message.photo:
+        photo = update.message.reply_to_message.photo[-1]
+    else:
+        await update.message.reply_text("📷 Send `/imgtofile` with an image or reply to an image.")
         return
 
-    # Get highest quality photo
-    photo = update.message.photo[-1]
+    # Download the image
     file = await context.bot.get_file(photo.file_id)
     file_path = "/tmp/temp_image.jpg"
     await file.download_to_drive(file_path)
@@ -219,7 +224,7 @@ def main():
     app.add_handler(CommandHandler("ipinfo", ipinfo_command))  # <--- Added here
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat))
     app.add_handler(CallbackQueryHandler(joined_check, pattern="joined_check"))
-    app.add_handler(MessageHandler(filters.PHOTO, image_to_file))
+    app.add_handler(CommandHandler("imgtofile", image_to_file))
     app.add_handler(CommandHandler("tts", tts_command))
 
     logger.info("Bot is running...")
