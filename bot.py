@@ -163,7 +163,7 @@ async def ipinfo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"• Timezone: {data.get('timezone', 'N/A')}"
         )
 
-        await update.message.reply_text(info_text, parse_mode="Markdown")
+        await update.message.reply_text(reply, parse_mode=None)
     except Exception as e:
         logger.error(f"IPinfo error: {e}")
         await update.message.reply_text(f"⚠️ Error retrieving IP info: {e}")
