@@ -19,7 +19,17 @@ model = genai.GenerativeModel("gemini-1.5-flash")
 
 # Start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🤖 Hello! I’m your AI bot (Gemini-powered). Send me a message!")
+    await update.message.reply_text("🤖 Hello! I’m DAX your AI bot. Send me a message!")
+
+async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_message = update.message.text
+
+    try:
+        response = model.generate_content(user_message)
+        await update.message.reply_text(response.text)
+    except Exception as e:
+        logger.error(f"Error: {e}")
+        await update.message.reply_text(f"⚠️ Error: {e}")
 
 # Chat handler
 async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
