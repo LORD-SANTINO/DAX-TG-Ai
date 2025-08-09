@@ -146,29 +146,25 @@ async def ipinfo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("🌐 Usage: /ipinfo <IP address>")
         return
 
-    ip_address = context.args[0]
-    url = f"https://ipinfo.io/{ip_address}?token={IPINFO_API_KEY}"
-
-    # Example inside your /ipinfo command
     try:
         ip = context.args[0] if context.args else update.effective_message.text.split()[-1]
         response = requests.get(f"https://ipinfo.io/{ip}?token={IPINFO_API_KEY}")
         data = response.json()
-    
-    text = (
-        f"📍 IP Info for {ip}\n"
-        f"• City: {data.get('city', 'N/A')}\n"
-        f"• Region: {data.get('region', 'N/A')}\n"
-        f"• Country: {data.get('country', 'N/A')}\n"
-        f"• Org: {data.get('org', 'N/A')}\n"
-        f"• Location: {data.get('loc', 'N/A')}\n"
-        f"• Timezone: {data.get('timezone', 'N/A')}"
-    )
 
-    await update.message.reply_text(text, parse_mode=None)
+        text = (
+            f"📍 IP Info for {ip}\n"
+            f"• City: {data.get('city', 'N/A')}\n"
+            f"• Region: {data.get('region', 'N/A')}\n"
+            f"• Country: {data.get('country', 'N/A')}\n"
+            f"• Org: {data.get('org', 'N/A')}\n"
+            f"• Location: {data.get('loc', 'N/A')}\n"
+            f"• Timezone: {data.get('timezone', 'N/A')}"
+        )
 
-except Exception as e:
-    await update.message.reply_text(f"⚠️ Error retrieving IP info: {e}", parse_mode=None)
+        await update.message.reply_text(text, parse_mode=None)
+
+    except Exception as e:
+        await update.message.reply_text(f"⚠️ Error retrieving IP info: {e}", parse_mode=None)
 
 # --------- Main Function ----------
 def main():
