@@ -1,43 +1,36 @@
 import os
 import logging
+import google.generativeai as genai
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
-from openai import OpenAI
 
-# Enable logging
+# Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Get API keys from environment variables
+# Load API keys
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Initialize OpenAI client
-client = OpenAI(api_key=OPENAI_API_KEY)
+# Configure Gemini
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel("gemini-pro")
 
 # Start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🤖 Hello! I’m your AI bot. Send me a message and I’ll reply.")
+    await update.message.reply_text("🤖 Hello! I’m your AI bot (Gemini-powered). Send me a message!")
 
-# Handle normal text messages
+# Chat handler
 async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a friendly Telegram AI bot."},
-                {"role": "user", "content": user_message}
-            ]
-        )
-
-        bot_reply = response.choices[0].message.content
-        await update.message.reply_text(bot_reply)
+        response = model.generate_content(user_message)
+        await update.message.reply_text(response.text)
 
     except Exception as e:
         logger.error(f"Error: {e}")
-        await update.message.reply_text("⚠️ Sorry, something went wrong!")
+        await update.message.reply_text(f"⚠️ Error: {e}")
 
 # Main function
 def main():
