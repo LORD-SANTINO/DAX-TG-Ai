@@ -153,7 +153,7 @@ async def ipinfo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         ip = context.args[0] if context.args else update.effective_message.text.split()[-1]
         response = requests.get(f"https://ipinfo.io/{ip}?token={IPINFO_API_KEY}")
-    data = response.json()
+        data = response.json()
     
     text = (
         f"📍 IP Info for {ip}\n"
