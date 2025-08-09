@@ -5,6 +5,7 @@ import requests
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.constants import ChatAction
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
+from gtts import gTTS
 
 # ===================== CONFIG =====================
 CHANNEL_1 = "dax_gpt"
@@ -166,6 +167,49 @@ async def ipinfo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"⚠️ Error retrieving IP info: {e}", parse_mode=None)
 
+# --------- Text to Speech ----------
+async def tts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("🔊 Usage: /tts <text>")
+        return
+
+    text = " ".join(context.args)
+    file_path = "/tmp/tts.mp3"
+
+    try:
+        tts = gTTS(text=text, lang="en")
+        tts.save(file_path)
+
+        await update.message.reply_voice(voice=open(file_path, "rb"))
+    except Exception as e:
+        await update.message.reply_text(f"⚠️ Error generating speech: {e}")
+
+# --------- Image to File (Catbox) ----------
+async def image_to_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message.photo:
+        await update.message.reply_text("📷 Please send an image.")
+        return
+
+    # Get highest quality photo
+    photo = update.message.photo[-1]
+    file = await context.bot.get_file(photo.file_id)
+    file_path = "/tmp/temp_image.jpg"
+    await file.download_to_drive(file_path)
+
+    try:
+        with open(file_path, "rb") as f:
+            files = {"fileToUpload": f}
+            data = {"reqtype": "fileupload"}
+            response = requests.post("https://catbox.moe/user/api.php", data=data, files=files)
+
+        if response.status_code == 200:
+            await update.message.reply_text(f"✅ Uploaded to Catbox:\n{response.text}")
+        else:
+            await update.message.reply_text(f"⚠️ Upload failed: {response.status_code}")
+
+    except Exception as e:
+        await update.message.reply_text(f"⚠️ Error uploading image: {e}")
+
 # --------- Main Function ----------
 def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
@@ -175,6 +219,8 @@ def main():
     app.add_handler(CommandHandler("ipinfo", ipinfo_command))  # <--- Added here
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat))
     app.add_handler(CallbackQueryHandler(joined_check, pattern="joined_check"))
+    app.add_handler(MessageHandler(filters.PHOTO, image_to_file))
+    app.add_handler(CommandHandler("tts", tts_command))
 
     logger.info("Bot is running...")
     app.run_polling()
