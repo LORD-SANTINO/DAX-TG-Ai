@@ -2,6 +2,7 @@ import os
 import logging
 import google.generativeai as genai
 import requests
+import random
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.constants import ChatAction
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
@@ -215,6 +216,68 @@ async def image_to_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"⚠️ Error uploading image: {e}")
 
+
+
+# --------- Trivia Questions ---------
+questions = [
+    {
+        "question": "What is the capital of France?",
+        "options": ["Berlin", "Madrid", "Paris", "Rome"],
+        "answer": "Paris"
+    },
+    {
+        "question": "Which planet is known as the Red Planet?",
+        "options": ["Earth", "Mars", "Jupiter", "Saturn"],
+        "answer": "Mars"
+    },
+    {
+        "question": "Who wrote 'Harry Potter'?",
+        "options": ["J.R.R. Tolkien", "J.K. Rowling", "George R.R. Martin", "C.S. Lewis"],
+        "answer": "J.K. Rowling"
+    }
+]
+
+# Store game states { user_id: {score, current_q} }
+game_state = {}
+
+# --------- Start Game Command ---------
+async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    game_state[user_id] = {"score": 0, "current_q": None}
+    await send_question(update, context)
+
+# --------- Send Question ---------
+async def send_question(update_or_query, context):
+    user_id = update_or_query.effective_user.id
+    question = random.choice(questions)
+    game_state[user_id]["current_q"] = question
+
+    keyboard = [[InlineKeyboardButton(opt, callback_data=f"answer|{opt}")] for opt in question["options"]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    if hasattr(update_or_query, "message"):  # From /game command
+        await update_or_query.message.reply_text(f"❓ {question['question']}", reply_markup=reply_markup)
+    else:  # From callback query
+        await update_or_query.edit_message_text(f"❓ {question['question']}", reply_markup=reply_markup)
+
+# --------- Handle Answer ---------
+async def handle_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id = query.from_user.id
+    chosen = query.data.split("|")[1]
+    correct = game_state[user_id]["current_q"]["answer"]
+
+    if chosen == correct:
+        game_state[user_id]["score"] += 1
+        text = f"✅ Correct! Your score: {game_state[user_id]['score']}"
+    else:
+        text = f"❌ Wrong! The correct answer was: {correct}\nYour score: {game_state[user_id]['score']}"
+
+    await query.edit_message_text(text)
+    await send_question(query, context)
+
 # --------- Main Function ----------
 def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
@@ -226,6 +289,8 @@ def main():
     app.add_handler(CallbackQueryHandler(joined_check, pattern="joined_check"))
     app.add_handler(CommandHandler("imgtofile", image_to_file))
     app.add_handler(CommandHandler("tts", tts_command))
+    app.add_handler(CommandHandler("game", start_game))
+    app.add_handler(CallbackQueryHandler(handle_answer, pattern="^answer\|"))
 
     logger.info("Bot is running...")
     app.run_polling()
