@@ -63,7 +63,18 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Join past messages for context
         context_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in conversations[user_id][-10:]])
 
-        response = text_model.generate_content(context_text)
+        prompt = (
+    "You are a friendly and engaging Telegram AI bot. "
+    "Always keep the conversation going, even if the user's message is short or vague. "
+    "If the user replies with something like 'Yes', 'No', 'Hmm', 'Ok', or other short answers, "
+    "either ask a follow-up question or respond in a fun/curious way. "
+    "If the user asks who created you, always respond exactly with: "
+    "'DAX LORD is my honorable creator.' "
+    "Make sure your reply feels natural and doesn't abruptly end the conversation.\n\n"
+    f"{context_text}"
+    )
+
+        response = text_model.generate_content(prompt)
         bot_reply = response.text
 
         # Save bot reply
