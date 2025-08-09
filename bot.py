@@ -7,8 +7,8 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, Cal
 
 # ===================== CONFIG =====================
 # Your channel usernames (without @)
-CHANNEL_1 = "YourChannel1"
-CHANNEL_2 = "YourChannel2"
+CHANNEL_1 = "dax_gpt"
+CHANNEL_2 = "dax_channel01"
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
